@@ -14,6 +14,8 @@
     </div>
   </div>
 
+  <div class="mb-4">@include('partials.recipients', ['brand' => $brand])</div>
+
   @include('partials.calendar', [
     'postUrl' => fn ($p) => route('posts.show', $p),
     'addUrl' => fn ($d) => route('posts.create', [$brand, 'date' => $d->toDateString()]),

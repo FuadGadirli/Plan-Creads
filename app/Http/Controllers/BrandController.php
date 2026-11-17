@@ -7,7 +7,12 @@ use App\Models\Brand;
 use App\Models\Client;
 use App\Models\ContentPlan;
 use App\Models\Post;
+use App\Models\User;
+use App\Notifications\InviteNotification;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class BrandController extends Controller
 {
@@ -50,6 +55,13 @@ class BrandController extends Controller
     public function store(Request $request)
     {
         $data = $this->validated($request);
+        $contact = $request->validate([
+            'contact_name' => ['nullable', 'string', 'max:120', 'required_with:contact_email'],
+            'contact_email' => ['nullable', 'email', 'max:150'],
+        ]);
+        if (! empty($contact['contact_email'])) {
+            $this->assertClientEmail($contact['contact_email']);
+        }
         $brand = new Brand(collect($data)->except('logo')->all());
         $brand->is_active = true;
         if ($request->hasFile('logo')) {
@@ -61,7 +73,13 @@ class BrandController extends Controller
         }
         Activity::log("“{$brand->name}” markasını yaratdı", $brand, $brand->id);
 
-        return redirect()->route('brands.show', $brand)->with('success', 'Marka yaradıldı.');
+        $msg = 'Marka yaradıldı.';
+        if (! empty($contact['contact_email'])) {
+            $this->attachContact($brand, $contact['contact_name'], $contact['contact_email'], $request->user());
+            $msg .= ' Müştəriyə ('.$contact['contact_email'].') dəvət maili göndərildi.';
+        }
+
+        return redirect()->route('brands.show', $brand)->with('success', $msg);
     }
 
     public function show(Brand $brand)
@@ -83,7 +101,82 @@ class BrandController extends Controller
 
     public function edit(Brand $brand)
     {
+        $brand->load('clientUsers');
+
         return view('brands.form', ['brand' => $brand, 'clients' => Client::orderBy('name')->get()]);
+    }
+
+    /** E-poçt agentlik işçisinə məxsusdursa, müştəri kimi əlavə etmək olmaz */
+    private function assertClientEmail(string $email): void
+    {
+        $existing = User::where('email', $email)->first();
+        if ($existing && ! $existing->isClient()) {
+            throw ValidationException::withMessages(['contact_email' => 'Bu e-poçt agentlik işçisinə aiddir, müştəri hesabı kimi istifadə oluna bilməz.']);
+        }
+    }
+
+    /**
+     * Müştəri hesabını yaradır (və ya mövcudunu tapır), markaya bağlayır, dəvət göndərir.
+     * Marka hələ CRM-də müştəriyə bağlı deyilsə, avtomatik müştəri kartı da açılır.
+     */
+    private function attachContact(Brand $brand, string $name, string $email, User $inviter): User
+    {
+        if (! $brand->client_id) {
+            $client = Client::create([
+                'name' => $brand->name, 'contact_person' => $name, 'email' => $email,
+                'status' => 'active', 'started_at' => today(), 'first_contact_at' => today(), 'owner_id' => $inviter->id,
+            ]);
+            $brand->update(['client_id' => $client->id]);
+        }
+
+        $user = User::where('email', $email)->first();
+        $isNew = ! $user;
+        if ($isNew) {
+            $user = User::create([
+                'name' => $name, 'email' => $email, 'password' => Str::random(40),
+                'role' => 'client', 'client_id' => $brand->client_id, 'is_active' => true, 'email_notifications' => true,
+            ]);
+        }
+        $user->brands()->syncWithoutDetaching([$brand->id]);
+
+        if ($isNew) {
+            $user->notify(new InviteNotification(Password::broker()->createToken($user), $inviter->name));
+        }
+        Activity::log("{$brand->name} markasına müştəri hesabı əlavə etdi: {$email}", $brand, $brand->id);
+
+        return $user;
+    }
+
+    public function addContact(Request $request, Brand $brand)
+    {
+        $data = $request->validate([
+            'contact_name' => ['required', 'string', 'max:120'],
+            'contact_email' => ['required', 'email', 'max:150'],
+        ]);
+        $this->assertClientEmail($data['contact_email']);
+        $this->attachContact($brand, $data['contact_name'], $data['contact_email'], $request->user());
+
+        return back()->with('success', $data['contact_email'].' əlavə edildi və dəvət maili göndərildi.');
+    }
+
+    public function removeContact(Brand $brand, User $user)
+    {
+        abort_unless($user->isClient(), 404);
+        $user->brands()->detach($brand->id);
+        if (! $user->brands()->exists()) {
+            $user->update(['is_active' => false]);
+        }
+
+        return back()->with('success', $user->email.' bu markadan çıxarıldı.');
+    }
+
+    public function inviteContact(Request $request, Brand $brand, User $user)
+    {
+        abort_unless($user->isClient() && $user->brands()->whereKey($brand->id)->exists(), 404);
+        $user->update(['is_active' => true]);
+        $user->notify(new InviteNotification(Password::broker()->createToken($user), $request->user()->name));
+
+        return back()->with('success', 'Dəvət maili yenidən göndərildi: '.$user->email);
     }
 
     public function update(Request $request, Brand $brand)

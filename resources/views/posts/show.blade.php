@@ -63,6 +63,7 @@
           @endif
           @if ($u->hasPerm('approve') && in_array($post->status, ['draft', 'pending', 'internal_changes', 'client_changes']))
             <form method="POST" action="{{ route('posts.approve', $post) }}">@csrf<button class="btn-success w-full"><x-icon name="check" class="size-4" /> Təsdiqlə və müştəriyə göndər</button></form>
+            @include('partials.recipients', ['brand' => $brand])
           @endif
           @if ($u->hasPerm('approve') && $post->status === 'pending')
             <form method="POST" action="{{ route('posts.reject', $post) }}" x-data="{ o: false }">@csrf
@@ -72,6 +73,7 @@
           @endif
           @if ($post->status === 'sent')
             <form method="POST" action="{{ route('posts.remind', $post) }}">@csrf<button class="btn-secondary w-full"><x-icon name="bell" class="size-4" /> Müştəriyə xatırlat</button></form>
+            @include('partials.recipients', ['brand' => $brand])
             <p class="text-xs text-slate-500">Avtomatik xatırlatma: {{ $post->reminder_count }} dəfə{{ $post->last_reminder_at ? ', son: '.$post->last_reminder_at->diffForHumans() : '' }}</p>
           @endif
           @if ($post->status === 'client_approved')

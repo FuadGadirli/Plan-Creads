@@ -25,7 +25,7 @@
 
         @if ($u->hasPerm('approve') && in_array($latest->status, ['pending', 'internal_changes']))
           <div class="card flex flex-wrap items-center gap-3 p-4" x-data="{ o: false }">
-            <p class="flex-1 text-sm text-slate-600">Rəhbər olaraq bu versiyanı təsdiqləsəniz, dərhal müştərinin panelinə düşəcək və müştəriyə mail gedəcək.</p>
+            <div class="flex-1 space-y-1"><p class="text-sm text-slate-600">Rəhbər olaraq bu versiyanı təsdiqləsəniz, dərhal müştərinin panelinə düşəcək və müştəriyə mail gedəcək.</p>@include('partials.recipients', ['brand' => $brand])</div>
             <form method="POST" action="{{ route('content.approve', $latest) }}">@csrf<button class="btn-success"><x-icon name="check" class="size-4" /> Təsdiqlə və müştəriyə göndər</button></form>
             @if ($latest->status === 'pending')
               <button @click="o = !o" class="btn-danger">Düzəliş istə</button>
@@ -37,7 +37,7 @@
         @endif
         @if ($plan->status === 'sent')
           <form method="POST" action="{{ route('content.remind', $plan) }}" class="card flex items-center gap-3 p-4">@csrf
-            <p class="flex-1 text-sm text-slate-600">Müştəri təsdiqi gözlənilir. Xatırlatma göndərmək istəyirsiniz?</p>
+            <div class="flex-1 space-y-1"><p class="text-sm text-slate-600">Müştəri təsdiqi gözlənilir. Xatırlatma göndərmək istəyirsiniz?</p>@include('partials.recipients', ['brand' => $brand])</div>
             <button class="btn-secondary"><x-icon name="bell" class="size-4" /> Müştəriyə xatırlat</button>
           </form>
         @endif
