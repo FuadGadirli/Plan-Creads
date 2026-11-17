@@ -1,0 +1,10 @@
+# Hostinger: bütün sorğuları public/ qovluğuna yönləndirir.
+# Beləliklə .env, storage, vendor kimi gizli fayllar internetdən açılmır.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>

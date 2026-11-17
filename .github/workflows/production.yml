@@ -1,0 +1,58 @@
+name: Production build
+
+# main budağına hər push-dan sonra "production" budağı yığılır:
+# vendor (PHP paketləri) və public/build (CSS/JS) daxil olmaqla.
+# Hostinger Git məhz bu budağı çəkir, serverdə composer/npm lazım olmur.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: production-build
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, pdo, pdo_mysql, sqlite, pdo_sqlite, zip, intl
+          coverage: none
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Testlər
+        run: |
+          composer install --prefer-dist --no-interaction --no-progress
+          cp .env.example .env
+          php artisan key:generate
+          npm ci && npm run build
+          php artisan test
+
+      - name: Production paketləri
+        run: |
+          rm -rf vendor
+          composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader
+          rm -f .env
+
+      - name: production budağına göndər
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          # vendor və build-i bu budaqda saxlamaq üçün .gitignore-dan çıxarırıq
+          sed -i '/^\/vendor$/d; /^\/public\/build$/d; /^\/node_modules$/d' .gitignore
+          echo "/node_modules" >> .gitignore
+          git checkout -B production
+          git add -A
+          git commit -q -m "Production build: ${GITHUB_SHA::7}"
+          git push -f origin production
