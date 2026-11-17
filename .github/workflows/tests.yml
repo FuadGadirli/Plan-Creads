@@ -18,6 +18,10 @@ jobs:
           php-version: '8.3'
           extensions: dom, curl, libxml, mbstring, zip, pdo, sqlite, pdo_sqlite
           coverage: none
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - run: npm ci && npm run build
       - run: composer install --prefer-dist --no-interaction --no-progress
       - run: cp .env.example .env
       - run: php artisan key:generate
