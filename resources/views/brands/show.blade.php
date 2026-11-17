@@ -46,7 +46,7 @@
         @empty
           <p class="text-sm text-slate-500">Bu markaya hələ müştəri hesabı təyin edilməyib.</p>
         @endforelse
-        @if ($u->hasPerm('team'))<a href="{{ route('team.create', ['role' => 'client']) }}" class="btn-secondary btn-sm mt-3"><x-icon name="plus" class="size-3.5" /> Müştəri hesabı aç</a>@endif
+        @if ($u->hasPerm('brands.manage'))<a href="{{ route('brands.edit', $brand) }}#contacts" class="btn-secondary btn-sm mt-3"><x-icon name="pencil" class="size-3.5" /> Müştəri hesablarını idarə et</a>@endif
       </div>
       <div class="card p-5">
         <h2 class="mb-3 font-semibold">Son fəaliyyətlər</h2>

@@ -83,6 +83,11 @@ Route::middleware(['auth', 'active', 'staff'])->group(function () {
         Route::get('/brands/{brand}', [BrandController::class, 'show'])->name('brands.show');
         Route::get('/brands/{brand}/edit', [BrandController::class, 'edit'])->middleware('perm:brands.manage')->name('brands.edit');
         Route::put('/brands/{brand}', [BrandController::class, 'update'])->middleware('perm:brands.manage')->name('brands.update');
+        Route::middleware('perm:brands.manage')->group(function () {
+            Route::post('/brands/{brand}/contacts', [BrandController::class, 'addContact'])->name('brands.contacts.store');
+            Route::delete('/brands/{brand}/contacts/{user}', [BrandController::class, 'removeContact'])->name('brands.contacts.destroy');
+            Route::post('/brands/{brand}/contacts/{user}/invite', [BrandController::class, 'inviteContact'])->name('brands.contacts.invite');
+        });
         Route::get('/brands/{brand}/tasks', [TaskController::class, 'brand'])->name('brands.tasks');
 
         Route::middleware('perm:brands.files')->group(function () {
